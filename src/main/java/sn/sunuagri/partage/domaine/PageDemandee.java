@@ -1,6 +1,5 @@
-package sn.sunuagri.partage.application;
+package sn.sunuagri.partage.domaine;
 
-import sn.sunuagri.partage.domaine.RegleMetierEnfreinte;
 
 /** Pagination demandée par un client (page commençant à 0). */
 public record PageDemandee(int page, int taille) {

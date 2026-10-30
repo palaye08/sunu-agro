@@ -1,4 +1,4 @@
-package sn.sunuagri.partage.application;
+package sn.sunuagri.partage.domaine;
 
 import java.util.List;
 import java.util.function.Function;
