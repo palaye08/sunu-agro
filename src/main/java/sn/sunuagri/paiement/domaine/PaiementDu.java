@@ -64,7 +64,7 @@ public class PaiementDu {
     /** Message SMS en français, indiquant le montant. */
     public String messageSms() {
         return "SunuAgri : un paiement de " + montant.enFrancais() + " vous est dû pour la vente de "
-                + quantite.valeur() + " kg de " + culture.libelle() + ". Statut : à payer.";
+                + quantite.valeur() + " kg " + culture.precedeDeDe() + ". Statut : à payer.";
     }
 
     public void notificationEnvoyee(Instant quand) {

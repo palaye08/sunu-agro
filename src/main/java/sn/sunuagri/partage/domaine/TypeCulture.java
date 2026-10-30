@@ -20,4 +20,9 @@ public enum TypeCulture {
     public String libelle() {
         return libelle;
     }
+
+    /** Complément de nom en français, avec élision : « d'arachide », « de mil ». */
+    public String precedeDeDe() {
+        return "aeiouyéèê".indexOf(libelle.charAt(0)) >= 0 ? "d'" + libelle : "de " + libelle;
+    }
 }

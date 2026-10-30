@@ -127,7 +127,8 @@ class LivraisonCommandeTest {
         livraison.livrer(agent, commande(300).id());
 
         assertThat(sms.envoyes).hasSize(1);
-        assertThat(sms.envoyes.get(0)).startsWith("+221771234567 : SunuAgri : un paiement de 99 750 FCFA vous est dû");
+        assertThat(sms.envoyes.get(0)).isEqualTo("+221771234567 : SunuAgri : un paiement de 99 750 FCFA vous est dû "
+                + "pour la vente de 300 kg d'arachide. Statut : à payer.");
     }
 
     @Test

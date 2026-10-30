@@ -1,0 +1,1894 @@
+openapi: 3.0.1
+info:
+  title: SunuAgri API
+  description: |
+    API de la coopérative agricole SunuAgri : producteurs, parcelles, campagnes, cultures,
+    récoltes, stock, offres, commandes et paiements dus.
+
+    **Identité simulée** : renseignez les en-têtes `X-Role` et `X-Utilisateur-Id`
+    via le bouton *Authorize*.
+
+    **Erreurs** : toutes les erreurs suivent le format unique `Erreur`
+    (RFC 9457, `application/problem+json`) avec un `code` stable.
+
+    **Évolution** : l'API est versionnée dans le chemin (`/api/v1`) ; les évolutions
+    compatibles (ajout de champs, de ressources) se font sans changer de version.
+  contact:
+    name: Coopérative SunuAgri
+  version: v1
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+security:
+- role: []
+  utilisateur: []
+tags:
+- name: Producteurs
+  description: "US-01, US-03, US-15"
+- name: Parcelles
+  description: "US-02, US-03"
+- name: Campagnes
+  description: US-04
+- name: Cultures
+  description: "US-05, US-06, US-07"
+- name: Stock
+  description: "US-08, US-09"
+- name: Offres
+  description: "US-10, US-18"
+- name: Commandes
+  description: "US-11, US-12, US-13, US-16"
+- name: Paiements
+  description: "US-13, US-14"
+- name: Référentiel
+  description: "US-18, US-19"
+paths:
+  /api/v1/parametres-cultures/{culture}:
+    get:
+      tags:
+      - Référentiel
+      summary: Consulter les paramètres d'une culture (US-19)
+      description: "Rôle : ADMINISTRATEUR."
+      operationId: consulter
+      parameters:
+      - name: culture
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: Paramètres en vigueur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParametresCulture"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+    put:
+      tags:
+      - Référentiel
+      summary: Modifier les paramètres d'une culture (US-19)
+      description: "Rôle : ADMINISTRATEUR. La modification s'applique aux déclarations\
+        \ futures, jamais aux cultures déjà déclarées. Les valeurs doivent être strictement\
+        \ positives."
+      operationId: modifier
+      parameters:
+      - name: culture
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModificationParametresCulture"
+        required: true
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: Paramètres modifiés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParametresCulture"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs:
+    post:
+      tags:
+      - Producteurs
+      summary: Enregistrer un producteur (US-01)
+      description: "Rôle : AGENT. Le téléphone identifie le producteur et doit être\
+        \ unique dans la coopérative."
+      operationId: enregistrer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnregistrementProducteur"
+        required: true
+      responses:
+        "409":
+          $ref: "#/components/responses/Conflit"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "201":
+          description: Producteur enregistré ; l'en-tête Location donne son adresse
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Producteur"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs/{producteurId}/parcelles:
+    get:
+      tags:
+      - Parcelles
+      summary: Lister les parcelles d'un producteur (US-03)
+      description: "Rôles : AGENT, ou PRODUCTEUR pour ses propres parcelles."
+      operationId: lister
+      parameters:
+      - name: producteurId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Parcelles du producteur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Parcelle"
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+    post:
+      tags:
+      - Parcelles
+      summary: Déclarer une parcelle d'un producteur (US-02)
+      description: "Rôle : AGENT. Superficie strictement positive ; noms de parcelles\
+        \ distincts pour un même producteur ; superficie totale du producteur plafonné\
+        e (50 ha par défaut)."
+      operationId: declarer
+      parameters:
+      - name: producteurId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeclarationParcelle"
+        required: true
+      responses:
+        "201":
+          description: Parcelle déclarée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parcelle"
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs/imports:
+    post:
+      tags:
+      - Producteurs
+      summary: Importer des producteurs depuis un fichier CSV (US-15)
+      description: |-
+        Rôle : AGENT. Fichier UTF-8, une ligne par producteur : `nom;prénom;téléphone;village`.
+        Une ligne d'en-tête commençant par « nom » est ignorée. Les mêmes règles que l'enregistrement
+        unitaire s'appliquent : les lignes valides sont enregistrées, les lignes invalides sont rapportées
+        avec leur numéro et leur motif.
+      operationId: importer
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - fichier
+              type: object
+              properties:
+                fichier:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Compte rendu de l'import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RapportImport"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/offres:
+    get:
+      tags:
+      - Offres
+      summary: Lister les offres
+      description: "Rôles : ACHETEUR (offres ouvertes uniquement) ou AGENT (toutes,\
+        \ filtre de statut facultatif)."
+      operationId: lister_1
+      parameters:
+      - name: statut
+        in: query
+        description: Filtre facultatif (ignoré pour un acheteur)
+        required: false
+        schema:
+          type: string
+          enum:
+          - OUVERTE
+          - EPUISEE
+          - RETIREE
+      responses:
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: "Offres, de la plus récente à la plus ancienne"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Offre"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+    post:
+      tags:
+      - Offres
+      summary: "Publier une offre de vente (US-10, US-18)"
+      description: |-
+        Rôle : AGENT. La quantité ne dépasse pas le stock disponible de la culture et de la qualité ;
+        le prix au kg (XOF) est strictement positif. L'offre publiée réserve sa quantité dans le stock.
+        Si le prix s'écarte de plus de 30 % du prix de référence du marché, l'offre est publiée avec
+        un avertissement (champ `avertissementPrix`), sans être refusée.
+      operationId: publier
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicationOffre"
+        required: true
+      responses:
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "201":
+          description: Offre publiée (statut OUVERTE)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Offre"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/offres/{offreId}/retrait:
+    post:
+      tags:
+      - Offres
+      summary: Retirer une offre (US-10)
+      description: "Rôle : AGENT. La quantité non vendue est libérée ; les commandes\
+        \ en attente restent honorées."
+      operationId: retirer
+      parameters:
+      - name: offreId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: Offre retirée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Offre"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/cultures:
+    post:
+      tags:
+      - Cultures
+      summary: Déclarer une culture sur une parcelle pour une campagne (US-05)
+      description: "Rôle : AGENT. La campagne doit être ouverte ; la culture fait\
+        \ partie de la liste de référence ; la somme des superficies emblavées de\
+        \ la parcelle pour la campagne ne dépasse pas sa superficie. Statut initial\
+        \ : PLANIFIEE."
+      operationId: declarer_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeclarationCulture"
+        required: true
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "201":
+          description: Culture déclarée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Culture"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/cultures/{cultureId}/semis:
+    post:
+      tags:
+      - Cultures
+      summary: Enregistrer le semis d'une culture (US-06)
+      description: "Rôle : AGENT. PLANIFIEE → SEMEE. Aucun retour en arrière."
+      operationId: semer
+      parameters:
+      - name: cultureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Semis"
+        required: true
+      responses:
+        "200":
+          description: Culture semée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Culture"
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/cultures/{cultureId}/recolte:
+    post:
+      tags:
+      - Cultures
+      summary: "Déclarer la récolte d'une culture (US-06, US-07)"
+      description: |-
+        Rôle : AGENT. SEMEE → RECOLTEE, une seule fois. La campagne doit être ouverte ; la quantité est
+        strictement positive ; la date de récolte est au moins « cycle minimal » jours après le semis ;
+        un rendement supérieur à deux fois le rendement de référence est refusé comme suspect.
+      operationId: recolter
+      parameters:
+      - name: cultureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Recolte"
+        required: true
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: Récolte enregistrée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Culture"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/cultures/{cultureId}/livraisons:
+    post:
+      tags:
+      - Stock
+      summary: Livrer une récolte à l'entrepôt (US-08)
+      description: |-
+        Rôle : AGENT. La culture doit être récoltée ; le cumul livré ne dépasse pas la quantité récoltée ;
+        l'humidité ne dépasse pas le seuil de la culture. Une livraison acceptée crée un lot identifiable,
+        rattaché au producteur et daté. Une livraison refusée ne modifie rien.
+      operationId: livrer
+      parameters:
+      - name: cultureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LivraisonEntrepot"
+        required: true
+      responses:
+        "201":
+          description: "Livraison acceptée : lot créé"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lot"
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/commandes:
+    get:
+      tags:
+      - Commandes
+      summary: Consulter l'historique des commandes (US-16)
+      description: "Rôles : ACHETEUR (ses propres commandes uniquement) ou AGENT (toutes).\
+        \ Paginé, de la plus récente à la plus ancienne, filtre de statut facultatif."
+      operationId: historique
+      parameters:
+      - name: statut
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - EN_ATTENTE
+          - LIVREE
+          - ANNULEE
+      - name: page
+        in: query
+        description: "Numéro de page, à partir de 0"
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: taille
+        in: query
+        description: Taille de page (1 à 100)
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "200":
+          description: Une page de commandes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCommandes"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+    post:
+      tags:
+      - Commandes
+      summary: Passer une commande sur une offre ouverte (US-11)
+      description: |-
+        Rôle : ACHETEUR. Quantité minimale 50 kg ; la quantité ne dépasse pas le restant de l'offre.
+        Montant = quantité × prix au kg. Statut initial EN_ATTENTE ; l'offre devient EPUISEE
+        quand plus rien ne reste.
+      operationId: passer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PassageCommande"
+        required: true
+      responses:
+        "201":
+          description: Commande créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Commande"
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/commandes/{commandeId}/livraison:
+    post:
+      tags:
+      - Commandes
+      summary: "Confirmer la livraison d'une commande et répartir le paiement (US-13,\
+        \ US-14)"
+      description: |-
+        Rôle : AGENT. Seule une commande EN_ATTENTE peut être livrée. Les lots de la culture et de la qualité
+        sont consommés du plus ancien au plus récent. La coopérative retient sa commission (5 %), le reste
+        est réparti entre les producteurs au prorata des quantités apportées dans les lots consommés
+        (arrondi au franc par la méthode du plus fort reste : commission + paiements = montant, exactement).
+        Chaque paiement dû est créé « à payer » et un SMS est envoyé au producteur ; un échec d'envoi
+        n'annule pas la livraison et est tracé dans `notificationSms`.
+      operationId: livrer_1
+      parameters:
+      - name: commandeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "200":
+          description: "Commande livrée, paiements dus enregistrés"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivraisonCommande"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/commandes/{commandeId}/annulation:
+    post:
+      tags:
+      - Commandes
+      summary: Annuler sa commande (US-12)
+      description: "Rôle : ACHETEUR, propriétaire de la commande. Possible tant que\
+        \ la commande n'est pas livrée ; la quantité annulée redevient disponible\
+        \ dans l'offre."
+      operationId: annuler
+      parameters:
+      - name: commandeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "200":
+          description: Commande annulée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Commande"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/campagnes:
+    get:
+      tags:
+      - Campagnes
+      summary: Lister les campagnes
+      description: "Rôle : AGENT. De la plus récente à la plus ancienne."
+      operationId: lister_2
+      responses:
+        "200":
+          description: Campagnes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campagne"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+    post:
+      tags:
+      - Campagnes
+      summary: Ouvrir une campagne agricole (US-04)
+      description: "Rôle : AGENT. Saison HIVERNAGE ou CONTRE_SAISON ; date de fin\
+        \ postérieure à la date de début ; une seule campagne par saison et par anné\
+        e."
+      operationId: ouvrir
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OuvertureCampagne"
+        required: true
+      responses:
+        "409":
+          $ref: "#/components/responses/Conflit"
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "201":
+          description: Campagne ouverte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campagne"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/campagnes/{campagneId}/cloture:
+    post:
+      tags:
+      - Campagnes
+      summary: Clôturer une campagne (US-04)
+      description: "Rôle : AGENT. Une campagne clôturée n'accepte plus de nouvelle\
+        \ culture ni de récolte."
+      operationId: cloturer
+      parameters:
+      - name: campagneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "422":
+          $ref: "#/components/responses/RegleMetier"
+        "200":
+          description: Campagne clôturée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campagne"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/stocks:
+    get:
+      tags:
+      - Stock
+      summary: Consulter le stock par culture et par qualité (US-09)
+      description: "Rôle : AGENT. Disponible = total − réservé (quantités engagées\
+        \ dans les offres)."
+      operationId: consulter_1
+      parameters:
+      - name: culture
+        in: query
+        description: Filtre facultatif
+        required: false
+        schema:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+      - name: qualite
+        in: query
+        description: Filtre facultatif
+        required: false
+        schema:
+          type: string
+          enum:
+          - A
+          - B
+          - C
+      responses:
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: État du stock
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EtatStock"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs/{producteurId}:
+    get:
+      tags:
+      - Producteurs
+      summary: Consulter un producteur
+      description: "Rôles : AGENT, ou PRODUCTEUR pour lui-même uniquement."
+      operationId: consulter_2
+      parameters:
+      - name: producteurId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: Le producteur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Producteur"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs/{producteurId}/parcelles/{parcelleId}:
+    get:
+      tags:
+      - Parcelles
+      summary: Consulter le détail d'une parcelle (US-03)
+      description: "Rôles : AGENT, ou PRODUCTEUR pour ses propres parcelles."
+      operationId: consulter_3
+      parameters:
+      - name: producteurId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: parcelleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: La parcelle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parcelle"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs/{producteurId}/paiements:
+    get:
+      tags:
+      - Paiements
+      summary: Lister les paiements dus à un producteur
+      description: "Rôles : AGENT, ou PRODUCTEUR pour ses propres paiements uniquement."
+      operationId: duProducteur
+      parameters:
+      - name: producteurId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: "Paiements dus, du plus récent au plus ancien"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaiementDu"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/producteurs/{producteurId}/cultures:
+    get:
+      tags:
+      - Cultures
+      summary: Lister les cultures et récoltes d'un producteur
+      description: "Rôles : AGENT, ou PRODUCTEUR pour lui-même uniquement."
+      operationId: duProducteur_1
+      parameters:
+      - name: producteurId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: Cultures du producteur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Culture"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/prix-marche/{culture}:
+    get:
+      tags:
+      - Référentiel
+      summary: Consulter le prix de référence du marché d'une culture (US-18)
+      description: "Rôle : AGENT. Prix fourni par un service externe ; s'il est indisponible,\
+        \ le dernier prix connu est rendu avec sa date (source = DERNIER_PRIX_CONNU)."
+      operationId: consulter_4
+      parameters:
+      - name: culture
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+      responses:
+        "400":
+          $ref: "#/components/responses/RequeteInvalide"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "503":
+          $ref: "#/components/responses/ServiceIndisponible"
+        "200":
+          description: Prix de référence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrixMarche"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/parametres-cultures:
+    get:
+      tags:
+      - Référentiel
+      summary: Lister les paramètres des cultures (US-19)
+      description: "Rôle : ADMINISTRATEUR."
+      operationId: lister_3
+      responses:
+        "200":
+          description: Paramètres en vigueur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ParametresCulture"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/paiements/{paiementId}:
+    get:
+      tags:
+      - Paiements
+      summary: Consulter un paiement dû et le suivi de son SMS
+      description: "Rôles : AGENT, ou PRODUCTEUR pour ses propres paiements uniquement."
+      operationId: consulter_5
+      parameters:
+      - name: paiementId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: Le paiement dû
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaiementDu"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/offres/{offreId}:
+    get:
+      tags:
+      - Offres
+      summary: Consulter une offre
+      description: "Rôles : ACHETEUR (offre ouverte uniquement) ou AGENT."
+      operationId: consulter_6
+      parameters:
+      - name: offreId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: L'offre
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Offre"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/lots/{lotId}:
+    get:
+      tags:
+      - Stock
+      summary: Consulter un lot de stock
+      description: "Rôles : AGENT, ou PRODUCTEUR pour ses propres lots."
+      operationId: lot
+      parameters:
+      - name: lotId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: Le lot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lot"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/cultures/{cultureId}:
+    get:
+      tags:
+      - Cultures
+      summary: Consulter une culture et sa récolte
+      description: "Rôles : AGENT, ou PRODUCTEUR pour ses propres cultures."
+      operationId: consulter_7
+      parameters:
+      - name: cultureId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "200":
+          description: La culture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Culture"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/commandes/{commandeId}:
+    get:
+      tags:
+      - Commandes
+      summary: Consulter une commande
+      description: "Rôles : ACHETEUR (ses commandes) ou AGENT."
+      operationId: consulter_8
+      parameters:
+      - name: commandeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: La commande
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Commande"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+  /api/v1/campagnes/{campagneId}:
+    get:
+      tags:
+      - Campagnes
+      summary: Consulter une campagne
+      description: "Rôle : AGENT."
+      operationId: consulter_9
+      parameters:
+      - name: campagneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          $ref: "#/components/responses/Introuvable"
+        "403":
+          $ref: "#/components/responses/AccesRefuse"
+        "200":
+          description: La campagne
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campagne"
+        "401":
+          $ref: "#/components/responses/NonAuthentifie"
+        "500":
+          $ref: "#/components/responses/ErreurInterne"
+components:
+  schemas:
+    ModificationParametresCulture:
+      required:
+      - cycleMinimalJours
+      - humiditeMaxPourcent
+      - rendementReferenceKgParHa
+      type: object
+      properties:
+        rendementReferenceKgParHa:
+          type: number
+          example: 1200
+        humiditeMaxPourcent:
+          type: number
+          example: 9
+        cycleMinimalJours:
+          type: integer
+          format: int32
+          example: 90
+    ParametresCulture:
+      type: object
+      properties:
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        rendementReferenceKgParHa:
+          type: number
+        humiditeMaxPourcent:
+          type: number
+        cycleMinimalJours:
+          type: integer
+          format: int32
+    EnregistrementProducteur:
+      required:
+      - nom
+      - prenom
+      - telephone
+      - village
+      type: object
+      properties:
+        nom:
+          maxLength: 100
+          minLength: 0
+          type: string
+          example: Diop
+        prenom:
+          maxLength: 100
+          minLength: 0
+          type: string
+          example: Awa
+        telephone:
+          type: string
+          description: "Numéro sénégalais (9 chiffres, +221 facultatif)"
+          example: "+221771234567"
+        village:
+          maxLength: 100
+          minLength: 0
+          type: string
+          example: Ndiaganiao
+    Producteur:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        prenom:
+          type: string
+        telephone:
+          type: string
+        village:
+          type: string
+    DeclarationParcelle:
+      required:
+      - commune
+      - nom
+      - superficieHa
+      type: object
+      properties:
+        nom:
+          maxLength: 100
+          minLength: 0
+          type: string
+          example: Champ du baobab
+        superficieHa:
+          type: number
+          description: "Superficie en hectares, strictement positive"
+          example: 3.5
+        commune:
+          maxLength: 100
+          minLength: 0
+          type: string
+          example: Fatick
+    Parcelle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        producteurId:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        superficieHa:
+          type: number
+        commune:
+          type: string
+    LigneRefusee:
+      type: object
+      properties:
+        ligne:
+          type: integer
+          format: int32
+        motif:
+          type: string
+    RapportImport:
+      type: object
+      properties:
+        lignesTraitees:
+          type: integer
+          format: int32
+        lignesAcceptees:
+          type: integer
+          format: int32
+        lignesRefusees:
+          type: integer
+          format: int32
+        producteursCrees:
+          type: array
+          items:
+            type: string
+            format: uuid
+        refus:
+          type: array
+          items:
+            $ref: "#/components/schemas/LigneRefusee"
+    PublicationOffre:
+      required:
+      - culture
+      - prixParKg
+      - qualite
+      - quantiteKg
+      type: object
+      properties:
+        culture:
+          type: string
+          example: ARACHIDE
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        qualite:
+          type: string
+          example: A
+          enum:
+          - A
+          - B
+          - C
+        quantiteKg:
+          type: integer
+          description: Quantité en kg
+          format: int64
+          example: 1000
+        prixParKg:
+          type: integer
+          description: Prix au kg en XOF
+          format: int64
+          example: 350
+    Offre:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        qualite:
+          type: string
+          enum:
+          - A
+          - B
+          - C
+        quantiteKg:
+          type: integer
+          format: int64
+        quantiteRestanteKg:
+          type: integer
+          format: int64
+        prixParKg:
+          type: integer
+          format: int64
+        devise:
+          type: string
+        statut:
+          type: string
+          enum:
+          - OUVERTE
+          - EPUISEE
+          - RETIREE
+        datePublication:
+          type: string
+          format: date-time
+        avertissementPrix:
+          type: string
+          description: Présent si le prix s'écarte de plus de 30 % du prix de référence
+            (US-18)
+    DeclarationCulture:
+      required:
+      - campagneId
+      - culture
+      - parcelleId
+      - superficieEmblaveeHa
+      type: object
+      properties:
+        parcelleId:
+          type: string
+          format: uuid
+        campagneId:
+          type: string
+          format: uuid
+        culture:
+          type: string
+          example: ARACHIDE
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        superficieEmblaveeHa:
+          type: number
+          description: Superficie emblavée en hectares
+          example: 2
+    Culture:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        producteurId:
+          type: string
+          format: uuid
+        parcelleId:
+          type: string
+          format: uuid
+        campagneId:
+          type: string
+          format: uuid
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        superficieEmblaveeHa:
+          type: number
+        statut:
+          type: string
+          enum:
+          - PLANIFIEE
+          - SEMEE
+          - RECOLTEE
+        dateSemis:
+          type: string
+          format: date
+        dateRecolte:
+          type: string
+          format: date
+        quantiteRecolteeKg:
+          type: integer
+          format: int64
+        rendementKgParHa:
+          type: number
+        quantiteLivreeKg:
+          type: integer
+          format: int64
+    Semis:
+      required:
+      - dateSemis
+      type: object
+      properties:
+        dateSemis:
+          type: string
+          format: date
+          example: 2026-07-01
+    Recolte:
+      required:
+      - dateRecolte
+      - quantiteKg
+      type: object
+      properties:
+        dateRecolte:
+          type: string
+          format: date
+          example: 2026-10-15
+        quantiteKg:
+          type: integer
+          description: Quantité récoltée en kg
+          format: int64
+          example: 2000
+    LivraisonEntrepot:
+      required:
+      - qualite
+      - quantiteKg
+      - tauxHumidite
+      type: object
+      properties:
+        quantiteKg:
+          type: integer
+          description: Quantité livrée en kg
+          format: int64
+          example: 1500
+        tauxHumidite:
+          type: number
+          description: Taux d'humidité en %
+          example: 8.5
+        qualite:
+          type: string
+          example: A
+          enum:
+          - A
+          - B
+          - C
+    Lot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        producteurId:
+          type: string
+          format: uuid
+        cultureId:
+          type: string
+          format: uuid
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        qualite:
+          type: string
+          enum:
+          - A
+          - B
+          - C
+        quantiteKg:
+          type: integer
+          format: int64
+        quantiteRestanteKg:
+          type: integer
+          format: int64
+        tauxHumidite:
+          type: number
+        dateReception:
+          type: string
+          format: date-time
+    PassageCommande:
+      required:
+      - offreId
+      - quantiteKg
+      type: object
+      properties:
+        offreId:
+          type: string
+          format: uuid
+        quantiteKg:
+          type: integer
+          description: Quantité en kg
+          format: int64
+          example: 600
+    Commande:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        offreId:
+          type: string
+          format: uuid
+        acheteurId:
+          type: string
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        qualite:
+          type: string
+          enum:
+          - A
+          - B
+          - C
+        quantiteKg:
+          type: integer
+          format: int64
+        prixParKg:
+          type: integer
+          format: int64
+        montant:
+          type: integer
+          format: int64
+        devise:
+          type: string
+        statut:
+          type: string
+          enum:
+          - EN_ATTENTE
+          - LIVREE
+          - ANNULEE
+        dateCreation:
+          type: string
+          format: date-time
+        dateLivraison:
+          type: string
+          format: date-time
+    LivraisonCommande:
+      type: object
+      properties:
+        commande:
+          $ref: "#/components/schemas/Commande"
+        montantCommande:
+          type: integer
+          format: int64
+        commissionCooperative:
+          type: integer
+          format: int64
+        totalVerseProducteurs:
+          type: integer
+          format: int64
+        lotsConsommes:
+          type: array
+          items:
+            $ref: "#/components/schemas/LotConsomme"
+        paiements:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaiementDuResume"
+    LotConsomme:
+      type: object
+      properties:
+        lotId:
+          type: string
+          format: uuid
+        producteurId:
+          type: string
+          format: uuid
+        quantiteKg:
+          type: integer
+          format: int64
+    PaiementDuResume:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        producteurId:
+          type: string
+          format: uuid
+        quantiteKg:
+          type: integer
+          format: int64
+        montant:
+          type: integer
+          format: int64
+        statut:
+          type: string
+          enum:
+          - A_PAYER
+        notificationSms:
+          type: string
+          enum:
+          - EN_ATTENTE
+          - ENVOYEE
+          - ECHEC
+    OuvertureCampagne:
+      required:
+      - annee
+      - dateDebut
+      - dateFin
+      - saison
+      type: object
+      properties:
+        saison:
+          type: string
+          example: HIVERNAGE
+          enum:
+          - HIVERNAGE
+          - CONTRE_SAISON
+        annee:
+          maximum: 2100
+          minimum: 2000
+          type: integer
+          format: int32
+          example: 2026
+        dateDebut:
+          type: string
+          format: date
+          example: 2026-06-01
+        dateFin:
+          type: string
+          format: date
+          example: 2026-12-31
+    Campagne:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        saison:
+          type: string
+          enum:
+          - HIVERNAGE
+          - CONTRE_SAISON
+        annee:
+          type: integer
+          format: int32
+        dateDebut:
+          type: string
+          format: date
+        dateFin:
+          type: string
+          format: date
+        statut:
+          type: string
+          enum:
+          - OUVERTE
+          - CLOTUREE
+    EtatStock:
+      type: object
+      properties:
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        qualite:
+          type: string
+          enum:
+          - A
+          - B
+          - C
+        totalKg:
+          type: integer
+          format: int64
+        reserveKg:
+          type: integer
+          format: int64
+        disponibleKg:
+          type: integer
+          format: int64
+    NotificationSms:
+      type: object
+      properties:
+        statut:
+          type: string
+          enum:
+          - EN_ATTENTE
+          - ENVOYEE
+          - ECHEC
+        date:
+          type: string
+          format: date-time
+        motifEchec:
+          type: string
+    PaiementDu:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        commandeId:
+          type: string
+          format: uuid
+        producteurId:
+          type: string
+          format: uuid
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        quantiteKg:
+          type: integer
+          format: int64
+        montant:
+          type: integer
+          format: int64
+        devise:
+          type: string
+        statut:
+          type: string
+          enum:
+          - A_PAYER
+        dateCreation:
+          type: string
+          format: date-time
+        notificationSms:
+          $ref: "#/components/schemas/NotificationSms"
+    PrixMarche:
+      type: object
+      properties:
+        culture:
+          type: string
+          enum:
+          - ARACHIDE
+          - MIL
+          - RIZ
+          - MAIS
+        prixParKg:
+          type: integer
+          format: int64
+        devise:
+          type: string
+        date:
+          type: string
+          description: Date du prix
+          format: date-time
+        source:
+          type: string
+          enum:
+          - SERVICE_EXTERNE
+          - DERNIER_PRIX_CONNU
+    PageCommandes:
+      type: object
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Commande"
+        page:
+          type: integer
+          format: int32
+        taille:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+  responses:
+    RequeteInvalide:
+      description: Requête mal formée ou champs invalides
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    NonAuthentifie:
+      description: Identité absente ou invalide (en-têtes X-Role / X-Utilisateur-Id)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    AccesRefuse:
+      description: Le rôle de l'utilisateur ne permet pas cette opération
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    Introuvable:
+      description: Ressource introuvable (ou appartenant à un autre utilisateur)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    Conflit:
+      description: Une ressource identique existe déjà
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    RegleMetier:
+      description: Une règle métier n'est pas respectée
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    ServiceIndisponible:
+      description: Service externe indisponible et aucune valeur de repli
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+    ErreurInterne:
+      description: "Erreur inattendue, sans détail interne"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Erreur"
+  securitySchemes:
+    role:
+      type: apiKey
+      description: "Identité simulée : AGENT, PRODUCTEUR, ACHETEUR ou ADMINISTRATEUR"
+      name: X-Role
+      in: header
+    utilisateur:
+      type: apiKey
+      description: "Identifiant : id du producteur (rôle PRODUCTEUR) ou de l'acheteur\
+        \ (rôle ACHETEUR)"
+      name: X-Utilisateur-Id
+      in: header
