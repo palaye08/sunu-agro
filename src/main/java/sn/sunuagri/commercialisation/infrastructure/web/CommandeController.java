@@ -17,8 +17,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import sn.sunuagri.commercialisation.application.CommandeService;
+import sn.sunuagri.commercialisation.application.LivraisonCommandeService;
 import sn.sunuagri.commercialisation.domaine.commande.Commande;
 import sn.sunuagri.commercialisation.domaine.commande.StatutCommande;
+import sn.sunuagri.paiement.domaine.StatutNotification;
+import sn.sunuagri.paiement.domaine.StatutPaiement;
 import sn.sunuagri.partage.application.Utilisateur;
 import sn.sunuagri.partage.domaine.PageDemandee;
 import sn.sunuagri.partage.domaine.PageResultat;
@@ -37,9 +40,11 @@ import java.util.UUID;
 public class CommandeController {
 
     private final CommandeService service;
+    private final LivraisonCommandeService livraisons;
 
-    public CommandeController(CommandeService service) {
+    public CommandeController(CommandeService service, LivraisonCommandeService livraisons) {
         this.service = service;
+        this.livraisons = livraisons;
     }
 
     @PostMapping
@@ -96,6 +101,23 @@ public class CommandeController {
         return CommandeReponse.de(service.annuler(utilisateur, commandeId));
     }
 
+    @PostMapping("/{commandeId}/livraison")
+    @Operation(summary = "Confirmer la livraison d'une commande et répartir le paiement (US-13, US-14)",
+            description = """
+                    Rôle : AGENT. Seule une commande EN_ATTENTE peut être livrée. Les lots de la culture et de la qualité
+                    sont consommés du plus ancien au plus récent. La coopérative retient sa commission (5 %), le reste
+                    est réparti entre les producteurs au prorata des quantités apportées dans les lots consommés
+                    (arrondi au franc par la méthode du plus fort reste : commission + paiements = montant, exactement).
+                    Chaque paiement dû est créé « à payer » et un SMS est envoyé au producteur ; un échec d'envoi
+                    n'annule pas la livraison et est tracé dans `notificationSms`.""")
+    @ApiResponse(responseCode = "200", description = "Commande livrée, paiements dus enregistrés")
+    @ApiResponse(responseCode = "403", ref = ReponsesErreur.ACCES_REFUSE)
+    @ApiResponse(responseCode = "404", ref = ReponsesErreur.INTROUVABLE)
+    @ApiResponse(responseCode = "422", ref = ReponsesErreur.REGLE_METIER)
+    public LivraisonCommandeReponse livrer(@UtilisateurConnecte Utilisateur utilisateur, @PathVariable UUID commandeId) {
+        return LivraisonCommandeReponse.de(livraisons.livrer(utilisateur, commandeId));
+    }
+
     @Schema(name = "PassageCommande")
     public record PassageCommandeRequete(@NotNull UUID offreId,
                                          @NotNull @Schema(example = "600", description = "Quantité en kg") Long quantiteKg) {
@@ -119,5 +141,28 @@ public class CommandeController {
             return new PageCommandesReponse(p.elements().stream().map(CommandeReponse::de).toList(), p.page(),
                     p.taille(), p.totalElements(), p.totalPages());
         }
+    }
+
+    @Schema(name = "LivraisonCommande")
+    public record LivraisonCommandeReponse(CommandeReponse commande, long montantCommande, long commissionCooperative,
+                                           long totalVerseProducteurs, List<LotConsomme> lotsConsommes,
+                                           List<PaiementDuResume> paiements) {
+        static LivraisonCommandeReponse de(LivraisonCommandeService.LivraisonCommande l) {
+            return new LivraisonCommandeReponse(CommandeReponse.de(l.commande()),
+                    l.repartition().montantCommande().valeur(), l.repartition().commission().valeur(),
+                    l.repartition().totalVerse().valeur(),
+                    l.lotsConsommes().stream().map(p -> new LotConsomme(p.lotId(), p.producteurId(), p.quantite().valeur())).toList(),
+                    l.paiements().stream().map(p -> new PaiementDuResume(p.id(), p.producteurId(), p.quantite().valeur(),
+                            p.montant().valeur(), p.statut(), p.notification())).toList());
+        }
+    }
+
+    @Schema(name = "LotConsomme")
+    public record LotConsomme(UUID lotId, UUID producteurId, long quantiteKg) {
+    }
+
+    @Schema(name = "PaiementDuResume")
+    public record PaiementDuResume(UUID id, UUID producteurId, long quantiteKg, long montant, StatutPaiement statut,
+                                   StatutNotification notificationSms) {
     }
 }
