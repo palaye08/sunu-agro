@@ -10,6 +10,7 @@ import sn.sunuagri.commercialisation.domaine.offre.OffreRepository;
 import sn.sunuagri.paiement.application.NotificationPaiementService;
 import sn.sunuagri.paiement.application.PaiementService;
 import sn.sunuagri.partage.application.Transactions;
+import sn.sunuagri.referentiel.application.PrixMarcheService;
 import sn.sunuagri.referentiel.domaine.ReglesCooperative;
 import sn.sunuagri.stock.application.StockService;
 import sn.sunuagri.stock.domaine.LotRepository;
@@ -20,8 +21,9 @@ import java.time.Clock;
 public class ConfigurationCommercialisation {
 
     @Bean
-    OffreService offreService(OffreRepository offres, StockService stock, Transactions transactions, Clock horloge) {
-        return new OffreService(offres, stock, OffreService.ControlePrix.AUCUN, transactions, horloge);
+    OffreService offreService(OffreRepository offres, StockService stock, PrixMarcheService prixMarche,
+                              Transactions transactions, Clock horloge) {
+        return new OffreService(offres, stock, prixMarche::avertissementPourOffre, transactions, horloge);
     }
 
     @Bean

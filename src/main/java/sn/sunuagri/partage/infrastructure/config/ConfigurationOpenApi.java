@@ -43,6 +43,7 @@ public class ConfigurationOpenApi {
         composants.addResponses("Introuvable", erreur("Ressource introuvable (ou appartenant à un autre utilisateur)"));
         composants.addResponses("Conflit", erreur("Une ressource identique existe déjà"));
         composants.addResponses("RegleMetier", erreur("Une règle métier n'est pas respectée"));
+        composants.addResponses("ServiceIndisponible", erreur("Service externe indisponible et aucune valeur de repli"));
         composants.addResponses("ErreurInterne", erreur("Erreur inattendue, sans détail interne"));
 
         return new OpenAPI()
@@ -69,8 +70,8 @@ public class ConfigurationOpenApi {
                         new Tag().name("Producteurs").description("US-01, US-03, US-15"),
                         new Tag().name("Parcelles").description("US-02, US-03"),
                         new Tag().name("Campagnes").description("US-04"),
-                        new Tag().name("Cultures").description("US-05, US-06, US-07, US-08"),
-                        new Tag().name("Stock").description("US-09"),
+                        new Tag().name("Cultures").description("US-05, US-06, US-07"),
+                        new Tag().name("Stock").description("US-08, US-09"),
                         new Tag().name("Offres").description("US-10, US-18"),
                         new Tag().name("Commandes").description("US-11, US-12, US-13, US-16"),
                         new Tag().name("Paiements").description("US-13, US-14"),

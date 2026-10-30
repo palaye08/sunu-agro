@@ -20,6 +20,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import sn.sunuagri.partage.application.AccesRefuse;
 import sn.sunuagri.partage.application.NonAuthentifie;
+import sn.sunuagri.partage.application.ServiceExterneIndisponible;
 import sn.sunuagri.partage.domaine.ExceptionMetier;
 import sn.sunuagri.partage.domaine.RegleMetierEnfreinte;
 import sn.sunuagri.partage.domaine.RessourceDejaExistante;
@@ -43,6 +44,7 @@ public class GestionnaireErreurs {
             case RessourceDejaExistante ignored -> HttpStatus.CONFLICT;
             case AccesRefuse ignored -> HttpStatus.FORBIDDEN;
             case NonAuthentifie ignored -> HttpStatus.UNAUTHORIZED;
+            case ServiceExterneIndisponible ignored -> HttpStatus.SERVICE_UNAVAILABLE;
             case RegleMetierEnfreinte ignored -> HttpStatus.UNPROCESSABLE_ENTITY;
             default -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
@@ -129,6 +131,7 @@ public class GestionnaireErreurs {
             case CONFLICT -> "Conflit";
             case UNPROCESSABLE_ENTITY -> "Règle métier non respectée";
             case METHOD_NOT_ALLOWED -> "Méthode non autorisée";
+            case SERVICE_UNAVAILABLE -> "Service indisponible";
             case UNSUPPORTED_MEDIA_TYPE -> "Type de contenu non supporté";
             default -> "Erreur interne";
         };

@@ -8,6 +8,7 @@ public final class ReponsesErreur {
     public static final String INTROUVABLE = "#/components/responses/Introuvable";
     public static final String CONFLIT = "#/components/responses/Conflit";
     public static final String REGLE_METIER = "#/components/responses/RegleMetier";
+    public static final String SERVICE_INDISPONIBLE = "#/components/responses/ServiceIndisponible";
 
     private ReponsesErreur() {
     }

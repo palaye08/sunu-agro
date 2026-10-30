@@ -8,7 +8,10 @@ import org.springframework.context.annotation.Configuration;
 import sn.sunuagri.partage.application.Transactions;
 import sn.sunuagri.partage.domaine.Hectares;
 import sn.sunuagri.partage.domaine.Kilogrammes;
+import sn.sunuagri.referentiel.application.FournisseurPrixMarche;
 import sn.sunuagri.referentiel.application.ParametresCultureService;
+import sn.sunuagri.referentiel.application.PrixMarcheService;
+import sn.sunuagri.referentiel.domaine.DernierPrixConnuRepository;
 import sn.sunuagri.referentiel.domaine.ParametresCulture;
 import sn.sunuagri.referentiel.domaine.ParametresCultureRepository;
 import sn.sunuagri.referentiel.domaine.ReglesCooperative;
@@ -28,6 +31,12 @@ public class ConfigurationReferentiel {
     @Bean
     ParametresCultureService parametresCultureService(ParametresCultureRepository repository, Transactions transactions) {
         return new ParametresCultureService(repository, transactions);
+    }
+
+    @Bean
+    PrixMarcheService prixMarcheService(FournisseurPrixMarche fournisseur, DernierPrixConnuRepository derniersPrix,
+                                        ReglesCooperative regles) {
+        return new PrixMarcheService(fournisseur, derniersPrix, regles);
     }
 
     /** Au premier démarrage, charge les paramètres de référence ; ensuite, la base fait foi (US-19). */
